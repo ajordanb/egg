@@ -1,0 +1,11 @@
+[project]
+name = "egg"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "pytest>=9.0.2",
+]
