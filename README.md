@@ -89,6 +89,40 @@ async def handler(
     return data
 ```
 
+## Dependencies
+
+A dependency is any callable. Parameters are resolved by name from context.
+
+### Supported types
+
+```python
+# Async function
+async def get_client():
+    return AsyncClient()
+
+# Sync function
+def get_config():
+    return load_config()
+
+# Class instance with __call__
+class TokenProvider:
+    def __init__(self, secret: str):
+        self.secret = secret
+
+    async def __call__(self, user_id: str):
+        return generate_token(user_id, self.secret)
+
+# Usage: pass config at instantiation, user_id comes from context
+token_provider = TokenProvider(secret="abc123")
+
+@hatch_eggs
+async def handler(
+    user_id: str,
+    token: Annotated[str, Egg(token_provider)],  # calls token_provider(user_id=...)
+):
+    ...
+```
+
 ## How It Works
 
 1. **Decoration**: The `@hatch_eggs` decorator wraps your async function
