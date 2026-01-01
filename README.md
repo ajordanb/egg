@@ -1,6 +1,6 @@
 # Egg
 
-Lightweight async dependency injection framework for Python.
+Lightweight async dependency injection framework for Python. Inspired by [FastAPI's Depends](https://fastapi.tiangolo.com/learn/), but framework-agnostic.
 
 ## Installation
 
