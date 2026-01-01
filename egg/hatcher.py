@@ -35,7 +35,7 @@ class Hatcher:
     def is_circular_dependency(self, dep_func: Callable) -> bool:
         return dep_func in self.resolving
 
-    def cache_check(self, egg: Egg) -> bool:
+    def is_cached(self, egg: Egg) -> bool:
         return egg.use_cache and egg.dependency in self.cache
 
     def maybe_add_to_cache(self, egg: Egg, value: Any) -> None:
@@ -49,7 +49,7 @@ class Hatcher:
         if self.is_circular_dependency(dep_func):
             raise EggHatchingError(f"Circular dependency: {callable_name(dep_func)}")
 
-        if self.cache_check(egg):
+        if self.is_cached(egg):
             return self.cache[dep_func]
 
         self.resolving.add(dep_func)
