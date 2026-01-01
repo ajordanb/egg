@@ -7,9 +7,9 @@ Lightweight async dependency injection framework for Python. Inspired by [FastAP
 Requires Python >= 3.12
 
 ```bash
-uv sync
+pip install egg-di
 # or
-pip install -e .
+uv add egg-di
 ```
 
 ## Usage
