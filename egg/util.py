@@ -35,8 +35,6 @@ def get_type_hints_and_signature(func: Callable) -> tuple[dict, inspect.Signatur
     return hints, inspect.signature(target)
 
 
-
-
 def is_generator_function(func: Callable) -> bool:
     """Check if callable is a sync generator function."""
     if inspect.isgeneratorfunction(func):

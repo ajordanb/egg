@@ -45,9 +45,12 @@ def hatch_eggs(func: Callable[..., T]) -> Callable[..., T]:
                 if name in kwargs or name in available:
                     continue
 
-                eggs = extract_eggs(hints.get(name))
-                if eggs is None and is_egg(sig.parameters[name].default):
-                    eggs = sig.parameters[name].default
+                type_hint = hints.get(name)
+                default_value = sig.parameters[name].default
+                eggs = extract_eggs(type_hint)
+
+                if eggs is None and is_egg(default_value):
+                    eggs = default_value
                 if eggs is not None:
                     try:
                         kwargs[name] = await hatcher.hatch(eggs)

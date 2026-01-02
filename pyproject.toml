@@ -1,6 +1,6 @@
 [project]
 name = "injegg"
-version = "0.1.0"
+version = "0.1.2"
 description = "Lightweight async dependency injection framework for Python. Inspired by FastAPI's Depends."
 readme = "README.md"
 license = "MIT"
