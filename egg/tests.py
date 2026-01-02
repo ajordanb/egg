@@ -295,5 +295,57 @@ class TestDefaultValues:
         assert result == 99
 
 
+class TestSyncFunctions:
+    """Tests for sync function support."""
+
+    def test_sync_decorated_function(self):
+        """Test that sync functions can be decorated."""
+
+        @hatch_eggs
+        def func(value: Annotated[int, Egg(get_base_value)]) -> int:
+            return value + 1
+
+        result = func()  # No asyncio.run needed!
+        assert result == 11
+
+    def test_sync_function_with_sync_dependency(self):
+        """Test sync function with sync dependency."""
+
+        @hatch_eggs
+        def func(value: Annotated[str, Egg(get_sync_value)]) -> str:
+            return f"got_{value}"
+
+        result = func()
+        assert result == "got_sync"
+
+
+class TestClassMethods:
+    """Tests for class method support."""
+
+    def test_classmethod_with_dependency(self):
+        """Test that classmethods work with dependencies."""
+
+        class MyService:
+            @classmethod
+            @hatch_eggs
+            async def get_value(cls, value: Annotated[int, Egg(get_base_value)]) -> int:
+                return value + 1
+
+        result = asyncio.run(MyService.get_value())
+        assert result == 11
+
+    def test_instance_method_with_dependency(self):
+        """Test that instance methods work with dependencies."""
+
+        class MyService:
+            @hatch_eggs
+            async def get_value(self, value: Annotated[int, Egg(get_base_value)]) -> int:
+                return value + 1
+
+        service = MyService()
+        result = asyncio.run(service.get_value())
+        assert result == 11
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

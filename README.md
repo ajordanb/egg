@@ -4,7 +4,7 @@ Lightweight async dependency injection framework for Python. Inspired by [FastAP
 
 ## Installation
 
-Requires Python >= 3.12
+Requires Python >= 3.10
 
 ```bash
 pip install injegg

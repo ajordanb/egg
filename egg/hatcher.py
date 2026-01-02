@@ -67,7 +67,7 @@ class Hatcher:
         kwargs: dict[str, Any] = {}
 
         for name, param in sig.parameters.items():
-            if name == "self":
+            if name in ("self", "cls"):
                 continue
 
             eggs = extract_eggs(hints.get(name))

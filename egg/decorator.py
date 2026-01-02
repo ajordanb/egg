@@ -1,4 +1,5 @@
 from typing import Callable, TypeVar
+import asyncio
 import functools
 
 from egg.exceptions import EggHatchingError
@@ -11,34 +12,35 @@ T = TypeVar("T")
 
 def hatch_eggs(func: Callable[..., T]) -> Callable[..., T]:
     """
-         Decorator that resolves Egg dependencies.
+    Decorator that resolves Egg dependencies.
 
-         Example:
-             @hatch_eggs
-             async def initialize(
-                 tenant_name: str,
-                 client: Httpx.AsyncClient = Egg(get_client),
-             ):
-                 # client is resolved automatically
-                 ...
+    Works with both async and sync functions.
 
+    Example:
+        @hatch_eggs
+        async def initialize(
+            tenant_name: str,
+            client: Httpx.AsyncClient = Egg(get_client),
+        ):
+            # client is resolved automatically
+            ...
 
-        Args:
-            func: Function with Egg Dependency in param defaults or Annotated hints.
-        Returns:
-            Async wrapper that hatches eggs before calling func.
-         """
+    Args:
+        func: Function with Egg Dependency in param defaults or Annotated hints.
+    Returns:
+        Wrapper that hatches eggs before calling func.
+    """
 
     hints, sig = get_type_hints_and_signature(func)
     param_names = list(sig.parameters.keys())
 
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def async_wrapper(*args, **kwargs):
         available = build_available_values_from_args_kwargs(args, kwargs, param_names)
         hatcher = Hatcher(available)
 
         for name in sig.parameters:
-            if name in kwargs:
+            if name in kwargs or name in available:
                 continue
 
             eggs = extract_eggs(hints.get(name))
@@ -50,6 +52,14 @@ def hatch_eggs(func: Callable[..., T]) -> Callable[..., T]:
                 except Exception as e:
                     raise EggHatchingError(f"Failed to hatch '{name}': {e}") from e
 
-        return await func(*args, **kwargs)
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        return func(*args, **kwargs)
 
-    return wrapper
+    @functools.wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        return asyncio.run(async_wrapper(*args, **kwargs))
+
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    return sync_wrapper

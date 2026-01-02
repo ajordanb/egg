@@ -1,8 +1,11 @@
 import asyncio
 import inspect
+import logging
 from typing import Annotated, Any, Callable, get_args, get_origin, get_type_hints
-from loguru import logger
+
 from egg.egg import Egg
+
+logger = logging.getLogger(__name__)
 
 
 def callable_name(func: Callable) -> str:
