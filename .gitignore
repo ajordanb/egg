@@ -30,3 +30,6 @@ htmlcov/
 # uv
 .python-version
 
+# Scripts with secrets
+publish.sh
+

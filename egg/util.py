@@ -83,26 +83,32 @@ async def invoke_and_get_cleanup(func: Callable, kwargs: dict[str, Any]) -> tupl
     return func(**kwargs), None
 
 
-async def close_generator(generator: Any) -> None:
-    """
-    Close a generator by advancing it past the yield point.
+def run_sync_cleanup(generator) -> None:
+    """Run sync generator cleanup, handling StopIteration internally."""
+    try:
+        next(generator)
+    except StopIteration:
+        pass
 
-    This triggers the cleanup code after the yield statement.
-    """
+
+async def close_generator(generator: Any, timeout: float = 30.0) -> None:
+    """Close a generator with timeout protection."""
     if generator is None:
         return
 
     try:
         if inspect.isasyncgen(generator):
             try:
-                await generator.__anext__()
+                await asyncio.wait_for(generator.__anext__(), timeout=timeout)
             except StopAsyncIteration:
-                pass  # Expected - generator finished cleanup
+                pass
         else:
-            try:
-                next(generator)
-            except StopIteration:
-                pass  # Expected - generator finished cleanup
+            await asyncio.wait_for(
+                asyncio.to_thread(run_sync_cleanup, generator),
+                timeout=timeout
+            )
+    except asyncio.TimeoutError:
+        logger.warning(f"Cleanup timed out after {timeout}s")
     except Exception as e:
         logger.warning(f"Error during cleanup: {e}")
 

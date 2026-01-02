@@ -148,7 +148,7 @@ Cleanup runs even if the decorated function raises an exception. Multiple genera
 1. **Decoration**: The `@hatch_eggs` decorator wraps your async function
 2. **Inspection**: At call time, it inspects type hints (`Annotated[T, Egg(...)]`) and default values (`= Egg(...)`) to find dependencies
 3. **Resolution**: For each `Egg`, the dependency function is called. If that function also has `Egg` parameters, they're resolved first (recursive)
-4. **Caching**: Results are cached by default—calling the same dependency twice returns the cached value
+4. **Caching**: Results are cached within a single call—the same dependency used twice resolves once. Cache resets between calls (no global singletons)
 5. **Injection**: Resolved values replace the `Egg` markers and your function is called with the real dependencies
 
 ```
@@ -208,6 +208,30 @@ The flow:
 4. `create` receives the fully configured `api_client`
 
 Circular dependencies are detected and raise `EggHatchingError`.
+
+### Parameter order matters
+
+Dependencies resolve in parameter order. If a dependency relies on auto-injection from context, the injected value must be resolved first:
+
+```python
+# ✅ Works: db resolves first, then repo receives it via auto-injection
+@hatch_eggs
+async def handler(
+    db: Annotated[Database, Egg(get_database)],
+    repo: Annotated[UserRepo, Egg(get_user_repo)],  # get_user_repo(db) works
+):
+    ...
+
+# ❌ Fails: repo needs db, but db isn't in context yet
+@hatch_eggs
+async def handler(
+    repo: Annotated[UserRepo, Egg(get_user_repo)],  # get_user_repo(db) fails
+    db: Annotated[Database, Egg(get_database)],
+):
+    ...
+```
+
+To avoid this, use explicit `Egg()` wrappers in your dependency instead of relying on auto-injection.
 
 ## Use Cases
 

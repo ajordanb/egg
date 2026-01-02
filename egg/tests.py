@@ -458,6 +458,25 @@ class TestLifecycleCleanup:
         assert result == "10_resource"
         assert cleanup_called is True
 
+    def test_cleanup_timeout(self, caplog):
+        """Test that cleanup timeout logs warning but doesn't raise."""
+        import time
+        from egg.util import close_generator
+
+        def slow_cleanup_generator():
+            yield "value"
+            time.sleep(5)  # Simulate slow cleanup
+
+        async def test_timeout():
+            gen = slow_cleanup_generator()
+            next(gen)  # Get the value
+            await close_generator(gen, timeout=0.1)  # Very short timeout
+
+        with caplog.at_level("WARNING"):
+            asyncio.run(test_timeout())
+
+        assert "Cleanup timed out" in caplog.text
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
