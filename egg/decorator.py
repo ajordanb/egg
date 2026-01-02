@@ -39,22 +39,25 @@ def hatch_eggs(func: Callable[..., T]) -> Callable[..., T]:
         available = build_available_values_from_args_kwargs(args, kwargs, param_names)
         hatcher = Hatcher(available)
 
-        for name in sig.parameters:
-            if name in kwargs or name in available:
-                continue
+        try:
+            for name in sig.parameters:
+                if name in kwargs or name in available:
+                    continue
 
-            eggs = extract_eggs(hints.get(name))
-            if eggs is None and is_egg(sig.parameters[name].default):
-                eggs = sig.parameters[name].default
-            if eggs is not None:
-                try:
-                    kwargs[name] = await hatcher.hatch(eggs)
-                except Exception as e:
-                    raise EggHatchingError(f"Failed to hatch '{name}': {e}") from e
+                eggs = extract_eggs(hints.get(name))
+                if eggs is None and is_egg(sig.parameters[name].default):
+                    eggs = sig.parameters[name].default
+                if eggs is not None:
+                    try:
+                        kwargs[name] = await hatcher.hatch(eggs)
+                    except Exception as e:
+                        raise EggHatchingError(f"Failed to hatch '{name}': {e}") from e
 
-        if asyncio.iscoroutinefunction(func):
-            return await func(*args, **kwargs)
-        return func(*args, **kwargs)
+            if asyncio.iscoroutinefunction(func):
+                return await func(*args, **kwargs)
+            return func(*args, **kwargs)
+        finally:
+            await hatcher.cleanup()
 
     @functools.wraps(func)
     def sync_wrapper(*args, **kwargs):

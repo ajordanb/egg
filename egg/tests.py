@@ -347,5 +347,104 @@ class TestClassMethods:
         assert result == 11
 
 
+class TestLifecycleCleanup:
+    """Tests for generator-based dependency lifecycle and cleanup."""
+
+    def test_sync_generator_cleanup(self):
+        """Test that sync generator dependencies are cleaned up."""
+        cleanup_called = False
+
+        def get_resource():
+            nonlocal cleanup_called
+            yield "resource"
+            cleanup_called = True
+
+        @hatch_eggs
+        async def func(resource: Annotated[str, Egg(get_resource)]) -> str:
+            return resource
+
+        result = asyncio.run(func())
+        assert result == "resource"
+        assert cleanup_called is True
+
+    def test_async_generator_cleanup(self):
+        """Test that async generator dependencies are cleaned up."""
+        cleanup_called = False
+
+        async def get_async_resource():
+            nonlocal cleanup_called
+            yield "async_resource"
+            cleanup_called = True
+
+        @hatch_eggs
+        async def func(resource: Annotated[str, Egg(get_async_resource)]) -> str:
+            return resource
+
+        result = asyncio.run(func())
+        assert result == "async_resource"
+        assert cleanup_called is True
+
+    def test_cleanup_on_exception(self):
+        """Test that cleanup runs even when decorated function raises."""
+        cleanup_called = False
+
+        def get_resource():
+            nonlocal cleanup_called
+            yield "resource"
+            cleanup_called = True
+
+        @hatch_eggs
+        async def func(resource: Annotated[str, Egg(get_resource)]) -> str:
+            raise ValueError("intentional error")
+
+        with pytest.raises(ValueError, match="intentional error"):
+            asyncio.run(func())
+
+        assert cleanup_called is True
+
+    def test_multiple_generator_cleanup_order(self):
+        """Test that multiple generators are cleaned up in reverse order (LIFO)."""
+        cleanup_order = []
+
+        def get_first():
+            yield "first"
+            cleanup_order.append("first")
+
+        def get_second():
+            yield "second"
+            cleanup_order.append("second")
+
+        @hatch_eggs
+        async def func(
+            first: Annotated[str, Egg(get_first)],
+            second: Annotated[str, Egg(get_second)],
+        ) -> str:
+            return f"{first}_{second}"
+
+        result = asyncio.run(func())
+        assert result == "first_second"
+        assert cleanup_order == ["second", "first"]  # Reverse order
+
+    def test_mixed_regular_and_generator_deps(self):
+        """Test mixing regular callables with generator dependencies."""
+        cleanup_called = False
+
+        def get_resource():
+            nonlocal cleanup_called
+            yield "resource"
+            cleanup_called = True
+
+        @hatch_eggs
+        async def func(
+            value: Annotated[int, Egg(get_base_value)],
+            resource: Annotated[str, Egg(get_resource)],
+        ) -> str:
+            return f"{value}_{resource}"
+
+        result = asyncio.run(func())
+        assert result == "10_resource"
+        assert cleanup_called is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

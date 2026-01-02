@@ -123,6 +123,26 @@ async def handler(
     ...
 ```
 
+### Generators for cleanup
+
+Use generators to run cleanup code after the decorated function completes:
+
+```python
+async def get_database():
+    db = await Database.connect()
+    try:
+        yield db  # Value injected here
+    finally:
+        await db.close()  # Runs after decorated function completes
+
+@hatch_eggs
+async def handler(db: Annotated[Database, Egg(get_database)]):
+    await db.query("SELECT ...")
+# ← db.close() called here automatically
+```
+
+Cleanup runs even if the decorated function raises an exception. Multiple generators clean up in reverse order (LIFO).
+
 ## How It Works
 
 1. **Decoration**: The `@hatch_eggs` decorator wraps your async function

@@ -6,7 +6,14 @@ from typing import Any, Callable, TypeVar
 
 from egg.egg import Egg
 from egg.exceptions import EggHatchingError
-from egg.util import callable_name, is_egg, invoke, get_type_hints_and_signature, extract_eggs
+from egg.util import (
+    callable_name,
+    is_egg,
+    invoke_and_get_cleanup,
+    close_generator,
+    get_type_hints_and_signature,
+    extract_eggs,
+)
 
 T = TypeVar("T")
 
@@ -16,21 +23,20 @@ class Hatcher:
     """
     Egg Hatcher. Hatches Egg() annotations into their values.
 
-    Handles caching, circular dependency detection, and recursive resolution.
-
-    It takes one parameter:
+    Handles caching, circular dependency detection, recursive resolution,
+    and lifecycle cleanup for generator-based dependencies.
 
     Args:
         available: dictionary of available values to resolve eggs from.
-
     """
 
-    __slots__ = ("available", "cache", "resolving")
+    __slots__ = ("available", "cache", "resolving", "cleanups")
 
     def __init__(self, available: dict[str, Any]):
         self.available = available
         self.cache: dict[Callable, Any] = {}
         self.resolving: set[Callable] = set()
+        self.cleanups: list[Any] = []
 
     def is_circular_dependency(self, dep_func: Callable) -> bool:
         return dep_func in self.resolving
@@ -55,11 +61,18 @@ class Hatcher:
         self.resolving.add(dep_func)
         try:
             kwargs = await self.build_callable_kwargs(dep_func)
-            result = await invoke(dep_func, kwargs)
+            result, cleanup = await invoke_and_get_cleanup(dep_func, kwargs)
             self.maybe_add_to_cache(egg, result)
+            if cleanup is not None:
+                self.cleanups.append(cleanup)
             return result
         finally:
             self.resolving.discard(dep_func)
+
+    async def cleanup(self) -> None:
+        """Run all cleanup generators."""
+        for generator in reversed(self.cleanups):
+            await close_generator(generator)
 
     async def build_callable_kwargs(self, func: Callable) -> dict[str, Any]:
         """Build kwargs for a callable, resolving any nested Egg."""
