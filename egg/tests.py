@@ -318,6 +318,19 @@ class TestSyncFunctions:
         result = func()
         assert result == "got_sync"
 
+    def test_sync_wrapper_from_async_context(self):
+        """Test sync-decorated function works when called from async code."""
+
+        @hatch_eggs
+        def sync_func(value: Annotated[int, Egg(get_base_value)]) -> int:
+            return value + 1
+
+        async def async_caller():
+            return sync_func()
+
+        result = asyncio.run(async_caller())
+        assert result == 11
+
 
 class TestClassMethods:
     """Tests for class method support."""

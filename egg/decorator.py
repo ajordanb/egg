@@ -1,5 +1,6 @@
 from typing import Callable, TypeVar
 import asyncio
+import concurrent.futures
 import functools
 
 from egg.exceptions import EggHatchingError
@@ -61,7 +62,15 @@ def hatch_eggs(func: Callable[..., T]) -> Callable[..., T]:
 
     @functools.wraps(func)
     def sync_wrapper(*args, **kwargs):
-        return asyncio.run(async_wrapper(*args, **kwargs))
+        try:
+            asyncio.get_running_loop()
+            # Already in async context - run in thread pool
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(asyncio.run, async_wrapper(*args, **kwargs))
+                return future.result()
+        except RuntimeError:
+            # No running loop - safe to use asyncio.run directly
+            return asyncio.run(async_wrapper(*args, **kwargs))
 
     if asyncio.iscoroutinefunction(func):
         return async_wrapper
